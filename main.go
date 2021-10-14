@@ -68,7 +68,13 @@ const (
 	apiKey string = "29570e7acc52b3e085ab46f6a60f0a55"
 	upcomingURI = "/movie/upcoming"
 	allMovieURI string ="/discover/movie"
+	moviePopular string = "/movie/popular"
+	topRate string = "/movie/top_rated"
+	//upComing string = "/movie/upcoming"
 	genreAllURI string = "/genre/movie/list"
+
+	peoplePopular string = "/person/popular"
+
 
 	sqlHOST string = "127.0.0.1"
 	userName string = "postgres"
@@ -83,6 +89,7 @@ func dbConfigure() string{
 	//return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d ",sqlHOST,userName,password,db,port)
 }
 
+
 func main(){
 	config := dbConfigure()
 	fmt.Println(config)
@@ -94,32 +101,77 @@ func main(){
 		return
 	}
 
-	////////create table
-	db.AutoMigrate(&webCrawler.GenreInfo{}) //generate genreInfo Table
-	db.AutoMigrate(&webCrawler.MovieInfo{}) // generate movieInfo table
-	//
+	//create table
 
-	//TODO - Create all needed genre data with id : with uri:
-	genreAPIUri := host + genreAllURI +"?api_key=" + apiKey + "&language=zh-TW"
+	db.AutoMigrate(&webCrawler.GenreInfo{})
+	db.AutoMigrate(&webCrawler.MovieInfo{})
+	db.AutoMigrate(&webCrawler.PersonInfo{})
+	db.AutoMigrate(&webCrawler.KnowFor{})
 
+
+	//TODO - Get Genre And Movie
+	//genreAndMoviesAll(db)
+
+	//TODO - Get ALL person
+	peopleAll(db)
+}
+
+func genreAndMoviesAll(db *gorm.DB){
+	apiURL := host + genreAllURI +"?api_key=" + apiKey + "&language=zh-TW"
+	popularUri := host + moviePopular +"?api_key=" + apiKey + "&language=zh-TW"
+	topRateUri := host + topRate + "?api_key=" + apiKey + "&language=zh-TW"
 
 	//TODO - Insert Data to Database
-	err = webCrawler.GenreTableCreate(genreAPIUri,db)
+	genreList ,err := webCrawler.GenreTableCreate(apiURL,db)
 	if err != nil{
 		log.Fatalln(err)
 		return
 	}
 
+	//making a function to handle fetching movies for genre
+	genreAll(genreList,db)
+	popularAll(popularUri,db)
+	topRageAll(topRateUri,db)
+
+}
+
+func peopleAll(db *gorm.DB){
+	//uri
+	apiURL := host + peoplePopular + "?api_key=" + apiKey + "&language=zh-TW"
+	page := webCrawler.FetchPageInfo(apiURL)
+	uris := uriGenerator(apiURL,page)
+	webCrawler.FetchMovieInfos(uris,db,"people")
+}
+
+func genreAll(genreList []webCrawler.GenreInfo ,db *gorm.DB){
+	//for each genreList
+	// https://api.themoviedb.org/3/discover/movie?api_key=29570e7acc52b3e085ab46f6a60f0a55&language=zh-TW&sort_by=popularity.desc&page=1&with_genres=28&with_watch_monetization_types=flatrate
+	//fetechingURI := host + allMovieURI + "?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&page=1&with_genres="+strconv.Itoa(int(genreID))+"&with_watch_monetization_types=flatrate"
+	var genreALLURI []string
+	for _, genre := range genreList{
+		genreID := genre.Id
+		moviesUri := host + allMovieURI + "?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&page=1&with_genres="+strconv.Itoa(int(genreID))+"&with_watch_monetization_types=flatrate"
+
+		currentGenrePage := webCrawler.FetchPageInfo(moviesUri)
+		list := uriGenerator(moviesUri,currentGenrePage)
+		genreALLURI = append(genreALLURI,list...)
+	}
+
+	webCrawler.FetchMovieInfos(genreALLURI,db,"genre")
+}
+
+func popularAll(uri string,db* gorm.DB) {
 	var uris []string
-	//var res []*webCrawler.APIResult
-	//https://api.themoviedb.org/3/discover/movie?api_key=29570e7acc52b3e085ab46f6a60f0a55&language=zh-TW&sort_by=popularity.desc&include_adult=false&include_video=false&page=1&with_watch_monetization_types=flatrate
-	uri := host + allMovieURI +"?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&include_adult=false&include_video=false&page=1&with_watch_monetization_types=flatrate"
 	page := webCrawler.FetchPageInfo(uri)
 	uris = uriGenerator(uri,page)
+	webCrawler.FetchMovieInfos(uris,db,"movie")
+}
 
-	//store data to db
-	webCrawler.FetchMovieInfos(uris,db)
-
+func topRageAll(uri string,db *gorm.DB){
+	var uris []string
+	page := webCrawler.FetchPageInfo(uri)
+	uris = uriGenerator(uri,page)
+	webCrawler.FetchMovieInfos(uris,db,"movie")
 }
 
 func uriGenerator(uri string,page int) []string{
