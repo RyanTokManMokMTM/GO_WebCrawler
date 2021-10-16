@@ -93,6 +93,13 @@ type MovieInfo struct {
 	GenreInfo []GenreInfo `json:"-" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
 }
 
+type GenresMovies struct{
+	ID      uint `gorm:"primarykey"`
+	movieInfoId uint
+	genreInfoId uint
+}
+
+
 //GenreInfo TODO - Genre data
 type GenreInfo struct {
 	//APIResponse `gorm:"-"` //this info is no need in db

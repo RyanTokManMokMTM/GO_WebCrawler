@@ -80,7 +80,7 @@ const (
 	userName string = "postgres"
 	password string = "admin"
 	port int = 5432
-	db string = "tmdb"
+	db string = "movie"
 )
 
 func dbConfigure() string{
@@ -88,6 +88,7 @@ func dbConfigure() string{
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s",userName,password,sqlHOST,port,db)
 	//return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d ",sqlHOST,userName,password,db,port)
 }
+
 
 
 func main(){
@@ -102,18 +103,19 @@ func main(){
 	}
 
 	//create table
-
+	//
 	db.AutoMigrate(&webCrawler.GenreInfo{})
 	db.AutoMigrate(&webCrawler.MovieInfo{})
-	db.AutoMigrate(&webCrawler.PersonInfo{})
-	db.AutoMigrate(&webCrawler.KnowFor{})
+	//db.AutoMigrate(&webCrawler.PersonInfo{})
+	//db.AutoMigrate(&webCrawler.KnowFor{})
+	db.AutoMigrate(&webCrawler.GenresMovies{})
 
 
 	//TODO - Get Genre And Movie
-	//genreAndMoviesAll(db)
+	genreAndMoviesAll(db)
 
 	//TODO - Get ALL person
-	peopleAll(db)
+	//peopleAll(db)
 }
 
 func genreAndMoviesAll(db *gorm.DB){
@@ -132,7 +134,6 @@ func genreAndMoviesAll(db *gorm.DB){
 	genreAll(genreList,db)
 	popularAll(popularUri,db)
 	topRageAll(topRateUri,db)
-
 }
 
 func peopleAll(db *gorm.DB){
