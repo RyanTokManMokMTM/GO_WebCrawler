@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -27,6 +28,10 @@ func init(){
 const (
 	host string = "https://api.themoviedb.org/3"
 	apiKey string = "29570e7acc52b3e085ab46f6a60f0a55"
+)
+
+var (
+	detailURI = "%s/movie/%d?api_key=%s&language=zh-TW"
 )
 
 //TODO - GETTING API BASE INFO RESPONSE
@@ -62,6 +67,10 @@ type creditTypeAPIResponse struct {
 	Job        string `json:"job"`
 }
 
+type movieDetailAPIResponse struct {
+	MovieInfo
+}
+
 // TODO - Database schema
 
 //MovieInfo TODO - GETTING DATA FROM API
@@ -90,13 +99,7 @@ type MovieInfo struct {
 	//one movie can have many genres
 	//a genres can belong to many result
 
-	GenreInfo []GenreInfo `json:"-" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
-}
-
-type GenresMovies struct{
-	ID      uint `gorm:"primarykey"`
-	movieInfoId uint
-	genreInfoId uint
+	GenreInfo []GenreInfo `json:"genres" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
 }
 
 
@@ -242,10 +245,97 @@ func FetchMovieInfos(uris []string,db *gorm.DB,dataType string) bool{
 		} else if dataType == "people" {
 			getPeopleFromUri(uri,db)
 		}
+
 	}
-	//fmt.Println(uris[0])
-	//getPeopleFromUri(uris[0],db)
 	return true
+}
+
+func FetchMovieInfosViaIDS(ids []int,db *gorm.DB) {
+	//movieMap := make(map[int]*MovieInfo)
+	wg := sync.WaitGroup{}
+	for _,id := range ids{
+		wg.Add(1)
+		go func (id int,db *gorm.DB) {
+			defer wg.Done()
+			uri := fmt.Sprintf(detailURI,host,id,apiKey)
+			var movieDetail movieDetailAPIResponse
+			req,err := http.NewRequest("GET",uri,nil)
+			if err != nil{
+				log.Println(err)
+				return
+			}
+
+			res, err := client.Do(req)
+			if err != nil {
+				//log.Println(res)
+				return
+			}
+			defer res.Body.Close()
+
+			body,err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				//log.Println(res)
+				return
+			}
+
+			err = json.Unmarshal(body,&movieDetail)
+			if err != nil {
+				//log.Println(res)
+				return
+			}
+
+			//need to check current movie is in db?
+			//if movieDetail.Overview != "" && movieDetail.Title != ""{
+			//	//movieMap[id] = &movieDetail.MovieInfo
+			//	fmt.Println("Movie is got : ",movieDetail.MovieInfo.Id)
+			//	fmt.Println("Movie is got : ",movieDetail.MovieInfo.OriginalTitle)
+			//}
+			fmt.Println("Movie is got : ",movieDetail.MovieInfo.Id)
+
+		}(id,db)
+	}
+	wg.Wait()
+}
+
+
+func getMovieDetail(uri string,db *gorm.DB) {
+	var movieDetail movieDetailAPIResponse
+	req,err := http.NewRequest("GET",uri,nil)
+	if err != nil{
+		log.Println(err)
+		return
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body,err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println(res)
+		return
+	}
+
+	err = json.Unmarshal(body,&movieDetail)
+	if err != nil {
+		log.Println(res)
+		return
+	}
+
+		//need to check current movie is in db?
+	if movieDetail.Overview != ""{
+		if dbErr := db.Where("id = ?",movieDetail.Id).First(&MovieInfo{}); dbErr != nil{
+			if errors.Is(dbErr.Error,gorm.ErrRecordNotFound) {
+				db.Create(&movieDetail.MovieInfo)
+				fmt.Printf("%v movie is inserted",movieDetail.MovieInfo.Id)
+			}
+		}
+	}
+
+
 }
 
 //getMovieFromUri TODO - getting data from the specific URI

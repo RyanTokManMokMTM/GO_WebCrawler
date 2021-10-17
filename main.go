@@ -1,8 +1,10 @@
 package main
 
 import (
+	"WebCrawler/GzFileDownloader"
 	"WebCrawler/webCrawler"
-	//"WebCrawler/webCrawler"
+	"time"
+
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -10,58 +12,6 @@ import (
 	"log"
 	"strconv"
 )
-
-/*
-	TODO - SAVE ALL REQUIRED DATA TO DATABASE(IN PROGRESS)
-	TODO -  MOVIE DATA FROM API AND SAVING TO DATABASE
-	MovieData Response Format :
-	adult	false -> Bool
-	backdrop_path	null -> URL
-	genre_ids	[] -> a list of genre ids  -> use another table to save those information
-	id	883725 -> primary key of movie id
-	original_language	"en" -> string
-	original_title	"Motions" -> string
-	overview	""
-	popularity	0
-	poster_path	null
-	release_date	"2021-04-06"
-	title	"Motions"
-	video	false
-	vote_average	0
-	vote_count	0
-
-	TODO -  GENRE DATA FROM API -/genre/movie/list (Genre table -> one to many movie info)
-	Genre Data Format :
-	id - int
-	name - string
-
-	TODO -  ACTOR DATA FROM API AND SAVING TO DATABASE
-	-PEOPLE RESPONSE DATA
-	adult	- bool
-	gender	- int
-	id	- int
-	known_for - [KnownFor]
-	known_for_department- string
-	name - string
-	popularity	- float
-	profile_path	- string
-
-	-PEOPLE KnownFor RESPONSE
-	backdrop_path - string
-	first_air_date	- string
-	genre_ids - []int
-	id	- int
-	media_type	- string
-	name - string
-	origin_country - []string
-	original_language	- string
-	original_name	- string
-	overview	- string
-	poster_path	- string
-	vote_average	- float
-	vote_count	- int
-
-*/
 
 const (
 	host string = "https://api.themoviedb.org/3"
@@ -75,12 +25,23 @@ const (
 
 	peoplePopular string = "/person/popular"
 
+	//JSON GZ
+	fileHost string = "http://files.tmdb.org/p/exports"
 
 	sqlHOST string = "127.0.0.1"
 	userName string = "postgres"
 	password string = "admin"
 	port int = 5432
-	db string = "movie"
+	db string = "testDB"
+)
+
+var (
+	year int = 2021
+	month int = 10
+	day int = 16
+
+	movieGZ string = fmt.Sprintf("/movie_ids_%d_%d_%d.json.gz",month,day,year)
+	peopleGZ string = fmt.Sprintf("/person_ids_%d_%d_%d.json.gz",month,day,year)
 )
 
 func dbConfigure() string{
@@ -108,32 +69,67 @@ func main(){
 	db.AutoMigrate(&webCrawler.MovieInfo{})
 	//db.AutoMigrate(&webCrawler.PersonInfo{})
 	//db.AutoMigrate(&webCrawler.KnowFor{})
-	db.AutoMigrate(&webCrawler.GenresMovies{})
+	//db.AutoMigrate(&webCrawler.GenresMovies{})
 
 
+	//downloadJSONFileZip()
 	//TODO - Get Genre And Movie
+	start := time.Now()
 	genreAndMoviesAll(db)
+	end := time.Now()
 
+	fmt.Printf("Total time is used %v",end.Sub(start))
 	//TODO - Get ALL person
 	//peopleAll(db)
 }
 
+func allMovieIds() error{
+	fileURI := fileHost + movieGZ
+	_, err := GzFileDownloader.DownloadGZFile(fileURI)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+
+	return nil
+}
+
 func genreAndMoviesAll(db *gorm.DB){
 	apiURL := host + genreAllURI +"?api_key=" + apiKey + "&language=zh-TW"
-	popularUri := host + moviePopular +"?api_key=" + apiKey + "&language=zh-TW"
-	topRateUri := host + topRate + "?api_key=" + apiKey + "&language=zh-TW"
+	//popularUri := host + moviePopular +"?api_key=" + apiKey + "&language=zh-TW"
+	//topRateUri := host + topRate + "?api_key=" + apiKey + "&language=zh-TW"
 
 	//TODO - Insert Data to Database
-	genreList ,err := webCrawler.GenreTableCreate(apiURL,db)
+	_ ,err := webCrawler.GenreTableCreate(apiURL,db)
 	if err != nil{
 		log.Fatalln(err)
 		return
 	}
 
+	fetchMovieViaID(db)
 	//making a function to handle fetching movies for genre
-	genreAll(genreList,db)
-	popularAll(popularUri,db)
-	topRageAll(topRateUri,db)
+	//genreAll(genreList,db)
+	//popularAll(popularUri,db)
+	//topRageAll(topRateUri,db)
+}
+
+func fetchMovieViaID(db *gorm.DB) error {
+	uri := fileHost + movieGZ
+	var uris []int
+	moviesData, err := GzFileDownloader.DownloadGZFile(uri)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	for _,movie := range *moviesData{
+		uris = append(uris,movie.MovieID)
+	}
+
+	webCrawler.FetchMovieInfosViaIDS(uris,db)
+
+	return nil
 }
 
 func peopleAll(db *gorm.DB){
