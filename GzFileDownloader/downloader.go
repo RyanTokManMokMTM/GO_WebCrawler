@@ -47,8 +47,8 @@ func DownloadGZFile(url string) (*[]*Movie,error){
 	var movies []*Movie
 
 	//first 10 record for example
-	//var i = 0
 	for scanner.Scan() {
+
 		line := scanner.Text()
 		movie, err := toJSON(line)
 		if err != nil {
@@ -56,6 +56,7 @@ func DownloadGZFile(url string) (*[]*Movie,error){
 			return nil,err
 		}
 		movies = append(movies,movie)
+
 	}
 	return &movies,nil
 }

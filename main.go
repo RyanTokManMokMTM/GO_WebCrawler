@@ -1,16 +1,17 @@
 package main
 
 import (
-	"WebCrawler/GzFileDownloader"
-	"WebCrawler/webCrawler"
-	"time"
-
+	"encoding/json"
+	"errors"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-
+	"io/ioutil"
 	"log"
 	"strconv"
+
+	"httpGetter/GzFileDownloader"
+	"httpGetter/webCrawler"
 )
 
 const (
@@ -30,7 +31,7 @@ const (
 
 	sqlHOST string = "127.0.0.1"
 	userName string = "postgres"
-	password string = "admin"
+	password string = "jackson"
 	port int = 5432
 	db string = "testDB"
 )
@@ -64,23 +65,25 @@ func main(){
 	}
 
 	//create table
-	//
+
 	db.AutoMigrate(&webCrawler.GenreInfo{})
 	db.AutoMigrate(&webCrawler.MovieInfo{})
 	//db.AutoMigrate(&webCrawler.PersonInfo{})
 	//db.AutoMigrate(&webCrawler.KnowFor{})
-	//db.AutoMigrate(&webCrawler.GenresMovies{})
 
 
-	//downloadJSONFileZip()
-	//TODO - Get Genre And Movie
-	start := time.Now()
-	genreAndMoviesAll(db)
-	end := time.Now()
+	//
+	////downloadJSONFileZip()
+	////TODO - Get Genre And Movie
+	//start := time.Now()
+	//genreAndMoviesAll(db)
+	//end := time.Now()
+	//
+	//fmt.Printf("Total time is used %v",end.Sub(start))
+	////TODO - Get ALL person
+	////peopleAll(db)
 
-	fmt.Printf("Total time is used %v",end.Sub(start))
-	//TODO - Get ALL person
-	//peopleAll(db)
+	insertJSONsToDB("G:\\moviesData",db)
 }
 
 func allMovieIds() error{
@@ -181,3 +184,36 @@ func uriGenerator(uri string,page int) []string{
 	return uris
 }
 
+func insertJSONsToDB(dirPath string,db *gorm.DB){
+	dir, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return
+	}
+
+	for _,file := range dir{
+		var movieInfo webCrawler.MovieInfo
+		jsonloc := fmt.Sprintf("%s/%s",dirPath,file.Name())
+		jsonsData, err := ioutil.ReadFile(jsonloc)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		err = json.Unmarshal(jsonsData, &movieInfo)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		if err := db.Where("id = ?",movieInfo.Id).First(&webCrawler.MovieInfo{});err !=nil{
+			if errors.Is(err.Error,gorm.ErrRecordNotFound){
+				//not found the record
+				//insert to db
+				db.Create(&movieInfo)
+			}else{
+				fmt.Println("???")
+			}
+		}
+	}
+
+}

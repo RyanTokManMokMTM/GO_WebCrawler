@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+
 	"strconv"
 	"sync"
 	"time"
+	"unicode"
 
 	"gorm.io/gorm"
 )
@@ -20,18 +23,27 @@ import (
 
 
 var client *http.Client
+var ERR_NOT_CHINESE error
+var ERR_EMPTY_OVERVIEW error
 
 func init(){
 	client = &http.Client{}
+	ERR_NOT_CHINESE = errors.New("NOT INCLUDED CHINESE")
+	ERR_EMPTY_OVERVIEW = errors.New("EMPTY OVERVIEW")
 }
 
 const (
 	host string = "https://api.themoviedb.org/3"
 	apiKey string = "29570e7acc52b3e085ab46f6a60f0a55"
+
 )
 
 var (
 	detailURI = "%s/movie/%d?api_key=%s&language=zh-TW"
+)
+
+var(
+
 )
 
 //TODO - GETTING API BASE INFO RESPONSE
@@ -73,11 +85,11 @@ type movieDetailAPIResponse struct {
 
 // TODO - Database schema
 
-//MovieInfo TODO - GETTING DATA FROM API
+//MovieInfo TODO - GETTING DATA FROM API -need chinese and chinese overview only
 type MovieInfo struct {
 	Adult            bool    `json:"adult"`
 	BackdropPath     string  `json:"backdrop_path"`
-	GenreIds         []int   `json:"genre_ids" gorm:"-"` //we are going to store it with join table ,ignore that...
+	GenreIds         []int   `json:"-" gorm:"-"` //we are going to store it with join table ,ignore that...
 	Id               uint    `json:"id" gorm:"primarykey"`
 	OriginalLanguage string  `json:"original_language"`
 	OriginalTitle    string  `json:"original_title"`
@@ -101,7 +113,6 @@ type MovieInfo struct {
 
 	GenreInfo []GenreInfo `json:"genres" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
 }
-
 
 //GenreInfo TODO - Genre data
 type GenreInfo struct {
@@ -162,6 +173,7 @@ type KnowFor struct {
 	//Department string `json:"department"` //only crew but cast get from credit api
 	Job        string `json:"job"` //only crew but cast get from credit api,current movie job
 }
+
 
 // GenreTableCreate TODO - Getting total page of the API response
 func GenreTableCreate(uri string,db *gorm.DB) ([]GenreInfo, error){
@@ -251,52 +263,123 @@ func FetchMovieInfos(uris []string,db *gorm.DB,dataType string) bool{
 }
 
 func FetchMovieInfosViaIDS(ids []int,db *gorm.DB) {
-	//movieMap := make(map[int]*MovieInfo)
+	//just for testing
+	//max goroutine is 20
+	//set 2 buffer channel
 	wg := sync.WaitGroup{}
+	maxRoutine := 70
+	movieURIsCh := make(chan string,100)
+	fetchResultCh := make(chan *MovieInfo,100)// all result are movie info
+	//dbCh := make(chan bool,10) //10 routine can access
+
+	//using a goroutine to print out the result
+	go getResultAndConvertTOJSON(fetchResultCh) //this goroutine will wait the result
+
+	go func(){
+		for i := 0;i<maxRoutine;i++{
+			wg.Add(1)
+			go asyncMovieFetcher(movieURIsCh,fetchResultCh,&wg) //used to fetch data ,if there is not any data need to fetch end!
+		}
+	}() //another goroutine
+
+	//push all URIs to the channel
 	for _,id := range ids{
-		wg.Add(1)
-		go func (id int,db *gorm.DB) {
-			defer wg.Done()
-			uri := fmt.Sprintf(detailURI,host,id,apiKey)
-			var movieDetail movieDetailAPIResponse
-			req,err := http.NewRequest("GET",uri,nil)
-			if err != nil{
-				log.Println(err)
-				return
-			}
-
-			res, err := client.Do(req)
-			if err != nil {
-				//log.Println(res)
-				return
-			}
-			defer res.Body.Close()
-
-			body,err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				//log.Println(res)
-				return
-			}
-
-			err = json.Unmarshal(body,&movieDetail)
-			if err != nil {
-				//log.Println(res)
-				return
-			}
-
-			//need to check current movie is in db?
-			//if movieDetail.Overview != "" && movieDetail.Title != ""{
-			//	//movieMap[id] = &movieDetail.MovieInfo
-			//	fmt.Println("Movie is got : ",movieDetail.MovieInfo.Id)
-			//	fmt.Println("Movie is got : ",movieDetail.MovieInfo.OriginalTitle)
-			//}
-			fmt.Println("Movie is got : ",movieDetail.MovieInfo.Id)
-
-		}(id,db)
+		reqURI := fmt.Sprintf(detailURI,host,id,apiKey)
+		movieURIsCh <- reqURI
 	}
+	fmt.Println("pushing data finished and closing the channel...")
+	close(movieURIsCh)
+	defer close(fetchResultCh)
 	wg.Wait()
+	fmt.Println("Fetching is Done....")
 }
 
+//httpGETData TODO - RETURN THE RESULT AND ERROR IF IT HAVE AN ERROR
+func httpGETData(uri string) *MovieInfo{
+	var movieDetail movieDetailAPIResponse
+	req,err := http.NewRequest("GET",uri,nil)
+	if err != nil{
+		log.Fatalln(err)
+		return nil
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+		return nil
+	}
+	defer res.Body.Close()
+
+	body,err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalln(err)
+		return nil
+	}
+
+	err = json.Unmarshal(body,&movieDetail)
+	if err != nil {
+		log.Fatalln(err)
+		return nil
+	}
+
+	if movieDetail.Overview == ""{
+		return nil
+	}
+
+
+	//check title is chinese
+	isChin := isChinese(movieDetail.Title)
+	if !isChin{
+		return nil
+	}
+
+	return &movieDetail.MovieInfo
+}
+
+func getResultAndConvertTOJSON(result chan *MovieInfo){
+	for{
+		v,ok := <- result
+		if !ok{ //getting nothing,channel closed
+			//fmt.Println("Not any result!",ok)
+			break
+		}
+		//fmt.Println
+		if v != nil{
+			fmt.Println(v.Title)
+			toJSON(v)
+		}
+	}
+}
+
+func toJSON(movie *MovieInfo) {
+	fileName := "G:/moviesData/"+ strconv.Itoa(int(movie.Id)) + ".json"
+	f, err := os.Create(fileName)
+	if err != nil {
+		return
+	}
+
+	data, err := json.MarshalIndent(movie,"","\t")
+	if err != nil {
+		return
+	}
+
+	f.Write(data)
+	f.Close()
+}
+
+func asyncMovieFetcher(ids chan string,result chan *MovieInfo,wg *sync.WaitGroup){
+	defer (*wg).Done() // each goroutine
+
+	for{
+		v,ok := <- ids
+		if !ok{
+			//fmt.Println("read all data!",ok)
+			break
+		}
+		result <- httpGETData(v)
+
+	}
+}
 
 func getMovieDetail(uri string,db *gorm.DB) {
 	var movieDetail movieDetailAPIResponse
@@ -622,4 +705,16 @@ func getPeopleCredit(creditID string) (*creditTypeAPIResponse ,error){
 		return nil,err
 	}
 	return &creditRes,nil
+}
+
+func isChinese(chinese string) bool{
+	count := 0
+	for _,v := range chinese{
+		if unicode.Is(unicode.Han,v){
+			count++
+			break
+		}
+	}
+
+	return count > 0
 }
