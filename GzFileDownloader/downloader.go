@@ -13,9 +13,8 @@ var (
 	client *http.Client
 )
 
-type Movie struct {
-	MovieID int `json:"id"`
-	Title string `json:"original_title"`
+type TMDBJson struct {
+	Id int `json:"id"`
 }
 
 func init(){
@@ -23,7 +22,7 @@ func init(){
 	client = &http.Client{}
 }
 
-func DownloadGZFile(url string) (*[]*Movie,error){
+func DownloadGZFile(url string) (*[]*TMDBJson,error){
 	res, err := client.Get(url)
 	if err != nil {
 		log.Println(res)
@@ -44,39 +43,31 @@ func DownloadGZFile(url string) (*[]*Movie,error){
 
 	//add to scanner
 	scanner := bufio.NewScanner(reader)
-	var movies []*Movie
+	var data []*TMDBJson
 
 	//first 10 record for example
-	for scanner.Scan() {
 
+	for scanner.Scan() {
 		line := scanner.Text()
-		movie, err := toJSON(line)
+		jsonData, err := toJSON(line)
 		if err != nil {
 			log.Println(err)
 			return nil,err
 		}
-		movies = append(movies,movie)
-
+		data = append(data,jsonData)
 	}
-	return &movies,nil
+	return &data,nil
 }
 
-func toJSON(jsonStr string) (*Movie,error) {
-	var movieData Movie
+func toJSON(jsonStr string) (*TMDBJson,error) {
+	var data TMDBJson
 	jsonBytes := []byte(jsonStr)
 
 	//parse to json struct
-	err := json.Unmarshal(jsonBytes, &movieData)
+	err := json.Unmarshal(jsonBytes, &data)
 	if err != nil {
 		log.Println(err)
 		return nil,err
 	}
-	//formatJSON, err := json.MarshalIndent(movieData, "", "\t")
-	//if err != nil {
-	//	log.Println(err)
-	//	return nil,err
-	//}
-	//fmt.Println(string(formatJSON))
-
-	return &movieData,nil
+	return &data,nil
 }
