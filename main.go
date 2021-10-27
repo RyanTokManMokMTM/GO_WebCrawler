@@ -34,7 +34,7 @@ const (
 	userName string = "postgres"
 	password string = "jackson"
 	port int = 5432
-	db string = "testDB"
+	db string = "testMovie"
 )
 
 var (
@@ -52,21 +52,36 @@ func main(){
 	config := dbConfigure()
 	fmt.Println(config)
 	db, err := gorm.Open(postgres.Open(config),&gorm.Config{
-		//some config here....
 	})
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	//create table
 
 	db.AutoMigrate(&webCrawler.GenreInfo{})
 	db.AutoMigrate(&webCrawler.MovieInfo{})
+	db.AutoMigrate(&webCrawler.GenresMovies{})
 	db.AutoMigrate(&webCrawler.PersonInfo{})
 	db.AutoMigrate(&webCrawler.MovieCharacter{})
 	db.AutoMigrate(&webCrawler.PersonCrew{})
 	db.AutoMigrate(&webCrawler.Department{})
+
+
+	if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
+		log.Println(err)
+		return
+	}
+
+	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
+		log.Println(err)
+		return
+	}
+
+	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
+		log.Println(err)
+		return
+	}
 
 	//TODO - GET DEPARTMENT
 	//departmentURI := fmt.Sprintf("%s/configuration/jobs?api_key=%s",host,apiKey)
@@ -76,12 +91,13 @@ func main(){
 	//movieCrawlerProcedure(db)
 
 	//TODO - Get ALL person
-	personCrawlerProcedure(db)
+	//personCrawlerProcedure(db)
 
 }
 
+
 func movieCrawlerProcedure(db *gorm.DB){
-	genreAndMoviesAll(db)
+	//genreAndMoviesAll(db)
 	insertJSONsToDB("G:\\moviesData",db,"movie")
 }
 

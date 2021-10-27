@@ -114,10 +114,6 @@ type MovieInfo struct {
 	GenreInfo []GenreInfo `json:"genres" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
 }
 
-type PersonJob struct {
-
-}
-
 //GenreInfo TODO - Genre data
 type GenreInfo struct {
 	//APIResponse `gorm:"-"` //this info is no need in db
@@ -130,6 +126,12 @@ type GenreInfo struct {
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type GenresMovies struct {
+	Id int `gorm:"primarykey"`
+	MovieInfoId int `gorm:"autoIncrement:false"`
+	GenreInfoId int `gorm:"autoIncrement:false"`
 }
 
 //PersonInfo TODO - Person data
@@ -218,6 +220,27 @@ type Department struct {
 	//has a list of job
 	//DepartmentJob []DepartmentJob `json:"-" gorm:"foreignKey:Id"`
 }
+
+
+//func (model *GenresMovies)AfterCreate(db *gorm.DB) (err error){
+//
+//	if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
+//		log.Println(err)
+//		return err
+//	}
+//
+//	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
+//		log.Println(err)
+//		return err
+//	}
+//
+//	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
+//		log.Println(err)
+//		return err
+//	}
+//	fmt.Println("Done")
+//	return nil
+//}
 
 
 //type DepartmentJob struct {
