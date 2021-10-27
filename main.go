@@ -65,7 +65,7 @@ func main(){
 	db.AutoMigrate(&webCrawler.PersonInfo{})
 	db.AutoMigrate(&webCrawler.MovieCharacter{})
 	db.AutoMigrate(&webCrawler.PersonCrew{})
-	db.AutoMigrate(&webCrawler.Department{})
+	//db.AutoMigrate(&webCrawler.Department{})
 
 
 	if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
