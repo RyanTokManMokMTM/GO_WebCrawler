@@ -1,16 +1,27 @@
 package main
 
 import (
+	//"encoding/json"
+	//"errors"
+	//"fmt"
+	//"gorm.io/driver/postgres"
+	//"gorm.io/gorm"
+	//"httpGetter/GzFileDownloader"
+	//"httpGetter/webCrawler"
+	//"github.com/urfave/cli"
+	//"os"
+
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/urfave/cli"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"httpGetter/GzFileDownloader"
 	"httpGetter/webCrawler"
-
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"time"
 )
@@ -18,11 +29,8 @@ import (
 const (
 	host string = "https://api.themoviedb.org/3"
 	apiKey string = "29570e7acc52b3e085ab46f6a60f0a55"
-	upcomingURI = "/movie/upcoming"
+
 	allMovieURI string ="/discover/movie"
-	moviePopular string = "/movie/popular"
-	topRate string = "/movie/top_rated"
-	//upComing string = "/movie/upcoming"
 	genreAllURI string = "/genre/movie/list"
 
 	peoplePopular string = "/person/popular"
@@ -30,17 +38,29 @@ const (
 	//JSON GZ
 	fileHost string = "http://files.tmdb.org/p/exports"
 
-	sqlHOST string = "127.0.0.1"
-	userName string = "postgres"
-	password string = "jackson"
-	port int = 5432
-	db string = "testMovie"
+	//sqlHOST string = "127.0.0.1"
+	//userName string = "postgres"
+	//password string = "jackson"
+	//port int = 5432
+	//db string = "movie"
 )
 
 var (
+	sqlHOST string = "127.0.0.1"
+	userName string = "postgres"
+	password string = ""
+	port int = 5432
+	db string = "TMDB"
+	moviePath string = ""
+	PersonPath string = ""
+	migration bool = false
+)
+
+
+var (
 	year ,month,day = time.Now().Date()
-	movieGZ string = fmt.Sprintf("/movie_ids_%d_%d_%d.json.gz",int(month),day,year)
-	peopleGZ string = fmt.Sprintf("/person_ids_%d_%d_%d.json.gz",int(month),day,year)
+	movieGZ string = fmt.Sprintf("/movie_ids_%d_%d_%d.json.gz",int(10),31,year)
+	peopleGZ string = fmt.Sprintf("/person_ids_%d_%d_%d.json.gz",int(10),31,year)
 )
 
 func dbConfigure() string{
@@ -49,68 +69,160 @@ func dbConfigure() string{
 }
 
 func main(){
+	readArgc()
+	if PersonPath == "" || moviePath == ""{
+		log.Fatalln("FilePath can't be empty")
+	}
+
+	log.Println("Configuring the database...")
 	config := dbConfigure()
-	fmt.Println(config)
 	db, err := gorm.Open(postgres.Open(config),&gorm.Config{
 	})
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	log.Println("DB Configuration Done...")
 
+	if migration {
+		log.Println("Creating table...")
+		db.AutoMigrate(&webCrawler.GenreInfo{})
+		db.AutoMigrate(&webCrawler.MovieInfo{})
+		db.AutoMigrate(&webCrawler.GenresMovies{})
+		db.AutoMigrate(&webCrawler.PersonInfo{})
+		db.AutoMigrate(&webCrawler.MovieCharacter{})
+		db.AutoMigrate(&webCrawler.PersonCrew{})
 
-	db.AutoMigrate(&webCrawler.GenreInfo{})
-	db.AutoMigrate(&webCrawler.MovieInfo{})
-	db.AutoMigrate(&webCrawler.GenresMovies{})
-	db.AutoMigrate(&webCrawler.PersonInfo{})
-	db.AutoMigrate(&webCrawler.MovieCharacter{})
-	db.AutoMigrate(&webCrawler.PersonCrew{})
-	//db.AutoMigrate(&webCrawler.Department{})
+		if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
+			log.Println(err)
+			return
+		}
 
+		if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
+			log.Println(err)
+			return
+		}
 
-	if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
-		log.Println(err)
-		return
+		if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
+			log.Println(err)
+			return
+		}
+
 	}
-
-	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
-		log.Println(err)
-		return
-	}
-
-	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
-		log.Println(err)
-		return
-	}
-
-	//TODO - GET DEPARTMENT
-	//departmentURI := fmt.Sprintf("%s/configuration/jobs?api_key=%s",host,apiKey)
-	//webCrawler.FetchAllDepartment(departmentURI,db)
-
 	//TODO - Get Genre And Movie
-	//movieCrawlerProcedure(db)
-
-	//TODO - Get ALL person
-	//personCrawlerProcedure(db)
+	movieCrawlerProcedure(db)
+	//
+	////TODO - Get ALL person
+	personCrawlerProcedure(db)
 
 }
 
+func readArgc(){
+	app := cli.NewApp()
+	app.Name = "TMDB Web Crawler"
+	app.Usage = "Fetch Movies and person etc..."
+	app.Action = run
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name: "dbHost",
+			Usage: "Postgres DB Host IP(Default:127.0.0.1)",
+		},
+		cli.StringFlag{
+			Name: "dbUser,u",
+			Usage: "Postgres DB Username(Default:postgres)",
+		},
+		cli.StringFlag{
+			Name: "dbPw",
+			Usage: "Postgres DB password(Default:null)",
+		},
+		cli.StringFlag{
+			Name: "db",
+			Usage:"Postgres DB database(Default:null)",
+		},
+		cli.StringFlag{
+			Name: "dbPort,p",
+			Usage: "Postgres DB port(Default:5432)",
+		},
+		cli.StringFlag{
+			Name : "moviePath,mf",
+			Usage: "Data to store in(Default:null)",
+		},
+		cli.StringFlag{
+			Name : "personPath,pf",
+			Usage: "Data to store in(Default:null)",
+		},
+		cli.StringFlag{
+			Name : "createTable,c",
+			Usage: "Auto Creating the db Table(0:False,1:True)(Default:false)",
+		},
+	}
+	app.Run(os.Args)
+}
+
+func run(c *cli.Context) error{
+	if c.String("dbHost") != ""{
+		sqlHOST = c.String("dbHost")
+	}
+
+	if c.String("dbPort") != ""{
+		p,err := strconv.Atoi(c.String("dbPort"))
+		if err != nil{
+			log.Fatalln(err)
+		}
+		port = p
+	}
+
+	if c.String("dbUser") != ""{
+		userName = c.String("dbUser")
+	}
+
+	if c.String("dbPw") != ""{
+		password = c.String("dbPw")
+	}
+
+	if c.String("db") != ""{
+		db = c.String("db")
+	}
+
+	if c.String("moviePath") != ""{
+		moviePath = c.String("moviePath")
+	}
+
+	if c.String("personPath") != ""{
+		PersonPath = c.String("personPath")
+	}
+
+	if c.String("createTable") != ""{
+		code,err := strconv.Atoi(c.String("createTable"))
+		if err != nil{
+			log.Fatalln(err)
+		}
+
+		if code == 0{
+			migration = false
+		} else if code == 1{
+			migration = true
+		}
+	}
+
+	return nil
+}
 
 func movieCrawlerProcedure(db *gorm.DB){
-	//genreAndMoviesAll(db)
-	insertJSONsToDB("G:\\moviesData",db,"movie")
+	genreAndMoviesAll(db)
+	insertJSONsToDB(moviePath,db,"movie")
 }
 
 func personCrawlerProcedure(db *gorm.DB){
-	//err := fetchPersonVisID(db)
-	//if err != nil {
-	//	log.Println(err)
-	//	return
-	//}
-	insertJSONsToDB("G:\\persons",db,"person")
+	err := fetchPersonVisID()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	insertJSONsToDB(PersonPath,db,"person")
 }
 
-func fetchMovieViaID(db *gorm.DB) error {
+func fetchMovieViaID(moviePath string) error {
 	uri := fileHost + movieGZ
 	var uris []int
 	moviesData, err := GzFileDownloader.DownloadGZFile(uri)
@@ -123,12 +235,12 @@ func fetchMovieViaID(db *gorm.DB) error {
 		uris = append(uris,movie.Id)
 	}
 
-	webCrawler.FetchMovieInfosViaIDS(uris,db)
+	webCrawler.FetchMovieInfosViaIDS(uris,moviePath)
 
 	return nil
 }
 
-func fetchPersonVisID(db *gorm.DB) error {
+func fetchPersonVisID() error {
 	uri := fileHost + peopleGZ
 	var uris []int
 	personData, err := GzFileDownloader.DownloadGZFile(uri)
@@ -140,21 +252,10 @@ func fetchPersonVisID(db *gorm.DB) error {
 	for _,person := range *personData{
 		uris = append(uris,person.Id)
 	}
-	webCrawler.FetchPersonInfosViaIDS(uris,db)
+	webCrawler.FetchPersonInfosViaIDS(uris,PersonPath)
 	return nil
 }
 
-func allMovieIds() error{
-	fileURI := fileHost + movieGZ
-	_, err := GzFileDownloader.DownloadGZFile(fileURI)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-
-	return nil
-}
 
 func genreAndMoviesAll(db *gorm.DB){
 	apiURL := host + genreAllURI +"?api_key=" + apiKey + "&language=zh-TW"
@@ -166,47 +267,7 @@ func genreAndMoviesAll(db *gorm.DB){
 		return
 	}
 
-	fetchMovieViaID(db)
-	//making a function to handle fetching movies for genre
-}
-
-func peopleAll(db *gorm.DB){
-	//uri
-	apiURL := host + peoplePopular + "?api_key=" + apiKey + "&language=zh-TW"
-	page := webCrawler.FetchPageInfo(apiURL)
-	uris := uriGenerator(apiURL,page)
-	webCrawler.FetchMovieInfos(uris,db,"people")
-}
-
-func genreAll(genreList []webCrawler.GenreInfo ,db *gorm.DB){
-	//for each genreList
-	// https://api.themoviedb.org/3/discover/movie?api_key=29570e7acc52b3e085ab46f6a60f0a55&language=zh-TW&sort_by=popularity.desc&page=1&with_genres=28&with_watch_monetization_types=flatrate
-	//fetechingURI := host + allMovieURI + "?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&page=1&with_genres="+strconv.Itoa(int(genreID))+"&with_watch_monetization_types=flatrate"
-	var genreALLURI []string
-	for _, genre := range genreList{
-		genreID := genre.Id
-		moviesUri := host + allMovieURI + "?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&page=1&with_genres="+strconv.Itoa(int(genreID))+"&with_watch_monetization_types=flatrate"
-
-		currentGenrePage := webCrawler.FetchPageInfo(moviesUri)
-		list := uriGenerator(moviesUri,currentGenrePage)
-		genreALLURI = append(genreALLURI,list...)
-	}
-
-	webCrawler.FetchMovieInfos(genreALLURI,db,"genre")
-}
-
-func popularAll(uri string,db* gorm.DB) {
-	var uris []string
-	page := webCrawler.FetchPageInfo(uri)
-	uris = uriGenerator(uri,page)
-	webCrawler.FetchMovieInfos(uris,db,"movie")
-}
-
-func topRageAll(uri string,db *gorm.DB){
-	var uris []string
-	page := webCrawler.FetchPageInfo(uri)
-	uris = uriGenerator(uri,page)
-	webCrawler.FetchMovieInfos(uris,db,"movie")
+	fetchMovieViaID(moviePath)
 }
 
 func uriGenerator(uri string,page int) []string{

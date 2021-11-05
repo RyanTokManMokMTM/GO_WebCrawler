@@ -2,7 +2,6 @@ package webCrawler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,8 +26,6 @@ var client *http.Client
 
 func init(){
 	client = &http.Client{}
-	//ERR_NOT_CHINESE = errors.New("NOT INCLUDED CHINESE")
-	//ERR_EMPTY_OVERVIEW = errors.New("EMPTY OVERVIEW")
 }
 
 const (
@@ -58,32 +55,12 @@ type genreAPIResponse struct {
 	Genres []GenreInfo `json:"genres"`
 }
 
-type peopleAPIResponse struct {
-	APIResponse
-	PeopleInfo []PersonInfo `json:"results"`
-}
-
-type peopleMovieCreditsAPIResponse struct {
-	Cast []KnowFor `json:"cast"` //movie character
-	Crew []KnowFor `json:"crew"` //movie crew director....
-}
-
-type creditTypeAPIResponse struct {
-	//CreditType string `json:"credit_type"`
-	//Department string `json:"department"`
-	Job        string `json:"job"`
-}
-
 type movieDetailAPIResponse struct {
 	MovieInfo
 }
 
-type DepartmentData struct {
-	Department
-	//Jobs []string `json:"jobs"`
-}
-
 // TODO - Database schema
+
 
 //MovieInfo TODO - GETTING DATA FROM API -need chinese and chinese overview only
 type MovieInfo struct {
@@ -98,14 +75,15 @@ type MovieInfo struct {
 	PosterPath       string  `json:"poster_path"`
 	ReleaseDate      string  `json:"release_date"`
 	Title            string  `json:"title"`
+	RunTime 		 int 	  `json:"runtime"`
 	Video            bool    `json:"video"`
 	VoteAverage      float64 `json:"vote_average"`
 	VoteCount        int     `json:"vote_count"`
 	
-	//gorm protocol
-	CreatedAt time.Time      `json:"-"`
-	UpdatedAt time.Time      `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	////gorm protocol
+	//CreatedAt time.Time      `json:"-"`
+	//UpdatedAt time.Time      `json:"-"`
+	//DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	//Here have many2many relationship
 	//one movie can have many genres
@@ -213,78 +191,6 @@ type PersonCrew struct {
 	Department string `json:"department"`
 }
 
-type Department struct {
-	Id int `gorm:"primarykey" json:"-"`
-	DepartmentName string `json:"department" gorm:"primarykey" `
-
-	//has a list of job
-	//DepartmentJob []DepartmentJob `json:"-" gorm:"foreignKey:Id"`
-}
-
-
-//func (model *GenresMovies)AfterCreate(db *gorm.DB) (err error){
-//
-//	if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
-//		log.Println(err)
-//		return err
-//	}
-//
-//	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
-//		log.Println(err)
-//		return err
-//	}
-//
-//	if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
-//		log.Println(err)
-//		return err
-//	}
-//	fmt.Println("Done")
-//	return nil
-//}
-
-
-//type DepartmentJob struct {
-//	Id int `gorm:"primarykey" json:"-"`
-//	Job string `gorm:"primarykey" `
-//}
-
-//FetchAllDepartment TODO - Get All Department job -Get department only
-func FetchAllDepartment(uri string,db *gorm.DB){
-	fmt.Println(uri)
-	var response []DepartmentData
-	res, err := http.Get(uri)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-
-	for _,department := range response{
-		fmt.Println(department.DepartmentName)
-		if department.DepartmentName == "Actors"{
-			department.DepartmentName = "Acting"
-		}
-		if errDB := db.Where("department_name = ?",department.DepartmentName).First(&Department{});errDB != nil{
-			if errors.Is(errDB.Error,gorm.ErrRecordNotFound){
-				db.Create(&department.Department)
-			}
-		}
-	}
-
-}
-
 // GenreTableCreate TODO - Getting total page of the API response
 func GenreTableCreate(uri string,db *gorm.DB) ([]GenreInfo, error){
 	request, err := http.NewRequest("GET",uri,nil)
@@ -357,29 +263,13 @@ func FetchPageInfo(uri string) int{
 	return result.TotalPages //get the total page of current response
 }
 
-//FetchMovieInfos TODO - fetching data from uris  - NOT USED
-func FetchMovieInfos(uris []string,db *gorm.DB,dataType string) bool{
-	for _,uri := range uris{
-		if dataType == "movie"{
-			getMovieFromUri(uri,db) //try it first
-		}else if dataType == "genre"{
-			getMoviesGenres(uri,db)
-		}
-		//} else if dataType == "people" {
-		//	getPeopleFromUri(uri,db)
-		//}
-
-	}
-	return true
-}
-
-func FetchMovieInfosViaIDS(ids []int,db *gorm.DB) {
+func FetchMovieInfosViaIDS(ids []int,moviePath string) {
 	wg := sync.WaitGroup{}
 	movieURIsCh := make(chan string,100)
 	fetchResultCh := make(chan *MovieInfo,100)// all result are movie info
 
 	//using a goroutine to print out the result
-	go getMovieResultAndConvertTOJSON(fetchResultCh) //this goroutine will wait the result
+	go getMovieResultAndConvertTOJSON(fetchResultCh,moviePath) //this goroutine will wait the result
 
 	go func(){
 		for i := 0;i<maxRoutine;i++{
@@ -441,7 +331,7 @@ func httpGETMovieData(uri string) *MovieInfo{
 	return &movieDetail.MovieInfo
 }
 
-func getMovieResultAndConvertTOJSON(result chan *MovieInfo){
+func getMovieResultAndConvertTOJSON(result chan *MovieInfo,moviePath string){
 	for{
 		v,ok := <- result
 		if !ok{ //getting nothing,channel closed
@@ -451,13 +341,13 @@ func getMovieResultAndConvertTOJSON(result chan *MovieInfo){
 		//fmt.Println
 		if v != nil{
 			fmt.Println(v.Title)
-			toMovieJson(v)
+			toMovieJson(v,moviePath)
 		}
 	}
 }
 
-func toMovieJson(movie *MovieInfo) {
-	fileName := "G:/moviesData/"+ strconv.Itoa(int(movie.Id)) + ".json"
+func toMovieJson(movie *MovieInfo,filePath string) {
+	fileName := filePath+"/"+ strconv.Itoa(int(movie.Id)) + ".json"
 	f, err := os.Create(fileName)
 	if err != nil {
 		return
@@ -487,14 +377,14 @@ func asyncMovieFetcher(ids chan string,result chan *MovieInfo,wg *sync.WaitGroup
 }
 
 // FetchPersonInfosViaIDS TODO - Fetch all person
-func FetchPersonInfosViaIDS(ids []int,db *gorm.DB){
+func FetchPersonInfosViaIDS(ids []int,personPath string){
 	//2 channels
 	wg := sync.WaitGroup{}
 	personIdsCh := make(chan string,100)
 	resultCh := make(chan *PersonInfo,100)
 
 	//set a go routine to
-	go getPersonResultAndConvertTOJSON(resultCh)
+	go getPersonResultAndConvertTOJSON(resultCh,personPath)
 
 	go func(){
 		for i:= 0; i< maxRoutine;i++{
@@ -514,7 +404,7 @@ func FetchPersonInfosViaIDS(ids []int,db *gorm.DB){
 	fmt.Println("Fetching is Done....")
 }
 
-func getPersonResultAndConvertTOJSON(result chan *PersonInfo){
+func getPersonResultAndConvertTOJSON(result chan *PersonInfo,personPath string){
 	for{
 		v, ok := <- result
 		if !ok {
@@ -523,7 +413,7 @@ func getPersonResultAndConvertTOJSON(result chan *PersonInfo){
 		}
 
 		if v != nil{
-			err := toPersonJSON(v)
+			err := toPersonJSON(v,personPath)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -547,8 +437,8 @@ func asyncPersonFetcher(uris chan string,result chan *PersonInfo,wg *sync.WaitGr
 	}
 }
 
-func toPersonJSON(person *PersonInfo) error {
-	fileName := fmt.Sprintf("G:/persons/%d.json",person.Id)
+func toPersonJSON(person *PersonInfo,personPath string) error {
+	fileName := fmt.Sprintf(personPath+"%d.json",person.Id)
 	fmt.Println(person.Name)
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -585,158 +475,6 @@ func httpGETPersonData(uri string) *PersonInfo{
 	}
 	
 	return &personData
-}
-
-func getMovieDetail(uri string,db *gorm.DB) {
-	var movieDetail movieDetailAPIResponse
-	req,err := http.NewRequest("GET",uri,nil)
-	if err != nil{
-		log.Println(err)
-		return
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer res.Body.Close()
-
-	body,err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println(res)
-		return
-	}
-
-	err = json.Unmarshal(body,&movieDetail)
-	if err != nil {
-		log.Println(res)
-		return
-	}
-
-		//need to check current movie is in db?
-	if movieDetail.Overview != ""{
-		if dbErr := db.Where("id = ?",movieDetail.Id).First(&MovieInfo{}); dbErr != nil{
-			if errors.Is(dbErr.Error,gorm.ErrRecordNotFound) {
-				db.Create(&movieDetail.MovieInfo)
-				fmt.Printf("%v movie is inserted",movieDetail.MovieInfo.Id)
-			}
-		}
-	}
-
-
-}
-
-//getMovieFromUri TODO - getting data from the specific URI
-func getMovieFromUri(uri string,db *gorm.DB){
-	var movieRes movieAPIResponse
-	request , err := http.NewRequest("GET",uri,nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	res, err := client.Do(request)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	err = json.Unmarshal(body,&movieRes)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	//for each list has/have a group of genre -> separated it!
-	for _,movie := range movieRes.Movies{
-		//need to check current movie is in db?
-		if movie.Overview == ""{
-			continue
-		}
-		if dbErr := db.Where("id = ?",movie.Id).First(&MovieInfo{}); dbErr != nil{
-			if errors.Is(dbErr.Error,gorm.ErrRecordNotFound) {
-				var currentMovie MovieInfo = movie
-				var genreIds []int = movie.GenreIds
-				var genreList []GenreInfo
-				for _,genreId := range genreIds{
-					//for each genre list
-					//let's test
-					curGenre := GenreInfo{
-						Id: uint(genreId),
-					}
-					genreList = append(genreList,curGenre)
-				}
-				currentMovie.GenreInfo = genreList
-				db.Create(&currentMovie)
-				fmt.Printf("%v movie is inserted",movie.Title)
-			}else{
-				fmt.Println(movie.Title,"is existed")
-			}
-		}
-	}
-}
-
-func getMoviesGenres(uri string,db *gorm.DB){
-	// https://api.themoviedb.org/3/discover/movie?api_key=29570e7acc52b3e085ab46f6a60f0a55&language=zh-TW&sort_by=popularity.desc&page=1&with_genres=28&with_watch_monetization_types=flatrate
-	//fetechingURI := host + allMovieURI + "?api_key=" + apiKey + "&language=zh-TW&sort_by=popularity.desc&page=1&with_genres="+strconv.Itoa(int(genreID))+"&with_watch_monetization_types=flatrate"
-	var movieRes movieAPIResponse
-	req,err := http.NewRequest("GET",uri,nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer res.Body.Close()
-
-	//read data from body
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	err = json.Unmarshal(body, &movieRes)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	for _,movie := range movieRes.Movies{
-		//need to check current movie is in db?
-		if movie.Overview == ""{
-			continue
-		}
-		if dbErr := db.Where("id = ?",movie.Id).First(&MovieInfo{}); dbErr != nil{
-			if errors.Is(dbErr.Error,gorm.ErrRecordNotFound) {
-				var currentMovie MovieInfo = movie
-				var genreIds []int = movie.GenreIds
-				var genreList []GenreInfo
-				for _,genreId := range genreIds{
-					//for each genre list
-					//let's test
-					curGenre := GenreInfo{
-						Id: uint(genreId),
-					}
-					genreList = append(genreList,curGenre)
-				}
-				currentMovie.GenreInfo = genreList
-				db.Create(&currentMovie)
-				fmt.Printf("%v movie is inserted",movie.Title)
-			}
-		}
-	}
 }
 
 func isChinese(chinese string) bool{
