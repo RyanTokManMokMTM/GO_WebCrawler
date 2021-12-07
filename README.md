@@ -1,4 +1,4 @@
-## TMDB Crawler
+## TMDB Crawler With Concurrency 
 This application is used for fetching all movies info and crews info from TMDB api.
 
 ---
@@ -99,7 +99,7 @@ func FetchPersonInfosViaIDS(ids []int,personPath string)
 * Step1: Get all available from TMDB
 * Step2: Get all movies id from TMDB JSON
 * Step3: Get all person id from TMDB JSON
-* Step4: API crawling....(Movies(60w+ datas),Persons(200w+Datas))
+* Step4: API crawling....(Movies(60w+ datas),Persons(200w+Datas))->  need around 1 hour~2hour
 * *YOU CAN SKIP THE STOP BELOW ,IF YOU NOT NEED)*
 * Step5: Create Database table
 * Step6: Insert all movies and persons to db
