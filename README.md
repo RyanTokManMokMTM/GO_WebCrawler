@@ -9,7 +9,7 @@ This application is used for fetching all movies info and crews info from TMDB a
 > (Movies):http://files.tmdb.org/p/exports/movie_ids_MM_DD_YYYY.json.gz.json.gz
 > (People):http://files.tmdb.org/p/exports/person_ids_MM_DD_YYYY.json.gz
 
-Function:
+### Functions:
 ```go
 `Arg: a string of GzFile URL`
 `Return: A list of JSON Id and a error(if any)`
@@ -80,7 +80,7 @@ type PersonInfo struct {
 }
 ```
 
-Function Usage
+### Functions:
 `All Crawlering using Concurrcy to improve the performance`  
 > Movie Fetcher
 ```go
@@ -94,4 +94,76 @@ func FetchMovieInfosViaIDS(ids []int,moviePath string)
 @Parms: personPath : json data to store at some location
 func FetchPersonInfosViaIDS(ids []int,personPath string)
 ```
+---
+#### Main Procedure
+* Step1: Get all available from TMDB
+* Step2: Get all movies id from TMDB JSON
+* Step3: Get all person id from TMDB JSON
+* Step4: API crawling....(Movies(60w+ datas),Persons(200w+Datas))
+* *YOU CAN SKIP THE STOP BELOW ,IF YOU NOT NEED)*
+* Step5: Create Database table
+* Step6: Insert all movies and persons to db
+* Step7: Done....
+### example:
+```go
+var (
+    sqlHOST string = "127.0.0.1"
+    userName string = "postgres"
+    password string = ""
+    port int = 5432
+    db string = "TMDB"
+    moviePath string = ""
+    PersonPath string = ""
+    migration bool = false
+)
 
+func main(){
+    readArgc()
+    if PersonPath == "" || moviePath == ""{
+    log.Fatalln("FilePath can't be empty")
+    }
+    
+    log.Println("Configuring the database...")
+    config := dbConfigure()
+    db, err := gorm.Open(postgres.Open(config),&gorm.Config{
+    })
+	
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    log.Println("DB Configuration Done...")
+    
+    if migration {
+        log.Println("Creating table...")
+        db.AutoMigrate(&webCrawler.GenreInfo{})
+        db.AutoMigrate(&webCrawler.MovieInfo{})
+        db.AutoMigrate(&webCrawler.GenresMovies{})
+        db.AutoMigrate(&webCrawler.PersonInfo{})
+        db.AutoMigrate(&webCrawler.MovieCharacter{})
+        db.AutoMigrate(&webCrawler.PersonCrew{})
+        
+        if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error ; err != nil {
+            log.Println(err)
+            return
+        }
+    
+    if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil{
+        log.Println(err)
+        return
+	}
+    
+    if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error ; err != nil{
+        log.Println(err)
+        return
+    }
+    
+    }
+    //TODO - Get Genre And Movie
+    movieCrawlerProcedure(db)
+    //
+    ////TODO - Get ALL person
+    personCrawlerProcedure(db)
+
+}
+```
