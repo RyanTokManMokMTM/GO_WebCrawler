@@ -1,8 +1,8 @@
-### TMDB Crawler
+## TMDB Crawler
 This application is used for fetching all movies info and crews info from TMDB api.
 
 ---
-#### Package
+### Package
 
 **GzFileDownloader**
 `(Download jsonGz files from TMDB)`
