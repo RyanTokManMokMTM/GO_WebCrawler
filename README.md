@@ -9,17 +9,19 @@ This application is used for fetching all movies info and crews info from TMDB a
 > (Movies):http://files.tmdb.org/p/exports/movie_ids_MM_DD_YYYY.json.gz.json.gz
 > (People):http://files.tmdb.org/p/exports/person_ids_MM_DD_YYYY.json.gz
 
-### Functions:
-```go
-`Arg: a string of GzFile URL`
-`Return: A list of JSON Id and a error(if any)`
-func DownloadGZFile(url string) (*[]*TMDBJson,error)
-```
+> JSON Structure  
 ```go
 type TMDBJson struct {
 	Id int `json:"id"`
 }
 ```
+
+### Functions:
+```go
+@Parms: url : a string of GzFile URL
+func DownloadGZFile(url string) (*[]*TMDBJson,error)
+```
+
   
 **webCrawler** 
 `Fetch Movies Info and Related Persons Info from TMDB`  
