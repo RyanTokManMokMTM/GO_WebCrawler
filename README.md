@@ -23,7 +23,7 @@ type TMDBJson struct {
   
 **webCrawler** 
 `Fetch Movies Info and Related Persons Info from TMDB`  
-**Movie and Person Data**
+> Movie and Person Data
 ```go
 // Movies Sturct
 type MovieInfo struct {
