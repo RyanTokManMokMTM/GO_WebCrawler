@@ -25,8 +25,8 @@ GLOBAL OPTIONS:
    --help, -h                      show help
 ```
 #### Example
-``` CMD
 > go build main.go
+``` CMD
 ./main --dbPw admin \
        --db TMDB \
        --moviePath D:/datas/movies  \
