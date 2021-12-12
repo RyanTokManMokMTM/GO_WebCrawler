@@ -206,7 +206,7 @@ func run(c *cli.Context) error {
 
 func movieCrawlerProcedure(db *gorm.DB) {
 	genreAndMoviesAll(db)
-	//insertJSONsToDB(moviePath, db, "movie")
+	insertJSONsToDB(moviePath, db, "movie")
 }
 
 func personCrawlerProcedure(db *gorm.DB) {
