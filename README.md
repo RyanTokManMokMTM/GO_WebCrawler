@@ -2,6 +2,39 @@
 This application is used for fetching all movies info and crews info from TMDB api.
 
 ---
+#### Usage:
+```CMD
+NAME:
+   TMDB Web Crawler - Fetch Movies and person etc...                     
+                                                                         
+USAGE:                                                                   
+   main.exe [global options] command [command options] [arguments...]    
+                                                                         
+COMMANDS:                                                                
+   help, h  Shows a list of commands or help for one command             
+                                                                         
+GLOBAL OPTIONS:                                                          
+   --dbHost value                  Postgres DB Host IP(Default:127.0.0.1)
+   --dbUser value, -u value        Postgres DB Username(Default:postgres)
+   --dbPw value                    Postgres DB password(Default:null)    
+   --db value                      Postgres DB database(Default:null)    
+   --dbPort value, -p value        Postgres DB port(Default:5432)
+   --moviePath value, --mf value   Data to store in(Default:null)
+   --personPath value, --pf value  Data to store in(Default:null)
+   --createTable value, -c value   Auto Creating the db Table(0:False,1:True)(Default:false)
+   --help, -h                      show help
+```
+#### Example
+``` CMD
+> go build main.go
+./main --dbPw admin \
+       --db TMDB \
+       --moviePath D:/datas/movies  \
+       --personPath D:/datas/persons \
+       --createTable 1 
+```
+
+---
 ### Package
 
 **GzFileDownloader**
