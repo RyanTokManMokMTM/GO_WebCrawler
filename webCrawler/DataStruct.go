@@ -79,9 +79,8 @@ type MovieInfo struct {
 }
 
 type MovieVideoInfo struct {
-	Id       int    `gorm:"primarykey"`
-	MovieID  uint   `gorm:"not null"`
-	FilePath string `gorm:"not null"`
+	MovieID  uint   `gorm:"primarykey"`
+	FilePath string `gorm:"primarykey"`
 }
 
 //GenreInfo TODO - Genre data

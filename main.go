@@ -50,7 +50,7 @@ var (
 	userName   string = "postgres"
 	password   string = ""
 	port       int    = 5432
-	db         string = "MovieDB"
+	db         string = ""
 	moviePath  string = ""
 	PersonPath string = ""
 	migration  bool   = false
@@ -108,9 +108,11 @@ func main() {
 
 	}
 	//TODO - Get Genre And Movie
-	movieCrawlerProcedure(db)
+	//movieCrawlerProcedure(db)
 	//TODO - Get ALL person
-	personCrawlerProcedure(db)
+	//personCrawlerProcedure(db)
+	db.AutoMigrate(&webCrawler.MovieVideoInfo{})
+	//VideoDownloader("D:/datas/movies", db)
 }
 
 func readArgc() {
@@ -205,7 +207,7 @@ func run(c *cli.Context) error {
 }
 
 func movieCrawlerProcedure(db *gorm.DB) {
-	genreAndMoviesAll(db)
+	//genreAndMoviesAll(db)
 	insertJSONsToDB(moviePath, db, "movie")
 }
 
@@ -394,3 +396,91 @@ func personJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 
 	return nil
 }
+
+//
+//type VideoDownloadingInfo struct {
+//	MovieId   uint
+//	VideoKeys []string
+//}
+//
+//func pytube(path string) string {
+//	cmd := exec.Command("python", "main.py", path)
+//	stdout, err := cmd.StdoutPipe() //Connected to cmd out std
+//	if err != nil {
+//		panic(err)
+//	}
+//	stderr, err := cmd.StderrPipe() //Connected to cmd error std
+//	if err != nil {
+//		panic(err)
+//	}
+//	err = cmd.Start()
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	go copyOutput(stdout)
+//	go copyOutput(stderr)
+//	cmd.Wait()
+//
+//	return fmt.Sprintf("%s is done", path)
+//}
+//
+//func copyOutput(r io.Reader) {
+//	scanner := bufio.NewScanner(r)
+//	for scanner.Scan() {
+//		fmt.Println(scanner.Text())
+//	}
+//}
+//
+//func asyncCaller(wg *sync.WaitGroup, ch chan string, done chan string) {
+//	defer wg.Done()
+//	for {
+//		v, ok := <-ch
+//		if !ok {
+//
+//			break
+//		}
+//		log.Println("Try to fetching video...")
+//		done <- pytube(v)
+//	}
+//}
+//
+//func isDoneHandler(done chan string) {
+//	for {
+//		v, ok := <-done
+//		if !ok {
+//			fmt.Println("channel is closed!")
+//			break
+//		}
+//
+//		fmt.Println(v)
+//	}
+//}
+//
+//func VideoDownloadProcedure(path []string) {
+//
+//	//using channel buffer and concurrency
+//	wg := sync.WaitGroup{}
+//	pyDownloadCh := make(chan string, 10) //storing the name of json path
+//	DoneCh := make(chan string, 10)
+//	//
+//	go isDoneHandler(DoneCh)
+//
+//	go func() {
+//		//given 10 go routine
+//		for i := 0; i < 10; i++ {
+//			wg.Add(1)
+//			go asyncCaller(&wg, pyDownloadCh, DoneCh)
+//		}
+//	}()
+//
+//	for _, str := range path {
+//		fmt.Println(str)
+//		pyDownloadCh <- str
+//	}
+//
+//	close(pyDownloadCh) //after for loop nothing will push to chanel, then close it
+//	defer close(DoneCh)
+//	wg.Wait()
+//	fmt.Println("done")
+//}
