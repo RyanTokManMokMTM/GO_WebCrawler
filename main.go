@@ -111,8 +111,8 @@ func main() {
 	//movieCrawlerProcedure(db)
 	//TODO - Get ALL person
 	//personCrawlerProcedure(db)
-	db.AutoMigrate(&webCrawler.MovieVideoInfo{})
-	//VideoDownloader("D:/datas/movies", db)
+	//db.AutoMigrate(&webCrawler.MovieVideoInfo{})
+	VideoDownloader(moviePath, db)
 }
 
 func readArgc() {
