@@ -48,11 +48,11 @@ const (
 var (
 	sqlHOST    string = "127.0.0.1"
 	userName   string = "postgres"
-	password   string = ""
+	password   string = "admin"
 	port       int    = 5432
-	db         string = ""
-	moviePath  string = ""
-	PersonPath string = ""
+	db         string = "TMDB"
+	moviePath  string = "D:/datas/movies"
+	PersonPath string = "D:/datas/persons"
 	migration  bool   = false
 )
 
@@ -68,7 +68,7 @@ func dbConfigure() string {
 }
 
 func main() {
-	readArgc()
+	//readArgc()
 	if PersonPath == "" || moviePath == "" {
 		log.Fatalln("FilePath can't be empty")
 	}
@@ -207,8 +207,8 @@ func run(c *cli.Context) error {
 }
 
 func movieCrawlerProcedure(db *gorm.DB) {
-	//genreAndMoviesAll(db)
-	insertJSONsToDB(moviePath, db, "movie")
+	genreAndMoviesAll(db)
+	//insertJSONsToDB(moviePath, db, "movie")
 }
 
 func personCrawlerProcedure(db *gorm.DB) {

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 )
 
 type downloadInfo struct {
@@ -21,7 +22,13 @@ type downloadInfo struct {
 	YoutubeKey string
 }
 
+const (
+	movieDateLayout = "2006-01-02"
+	//layoutUS  = "January 2, 2006"
+)
+
 func readMovieJSON(path string) []*downloadInfo {
+	olderDate := time.Now().AddDate(-10, 0, 0)
 	jsonFile, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatalln(err)
@@ -34,6 +41,17 @@ func readMovieJSON(path string) []*downloadInfo {
 	}
 
 	var movieRelatedTrailers []*downloadInfo
+
+	releaseYear, _ := time.Parse(movieDateLayout, movieInfo.ReleaseDate)
+
+	if releaseYear.Year() < olderDate.Year() {
+		fmt.Println("-----------------------TOO OLD--------------------------")
+		fmt.Println(movieInfo.Title)
+		fmt.Println(movieInfo.ReleaseDate)
+		fmt.Println("---------------------------END--------------------------")
+		return nil
+	}
+
 	//TODO - Read all the available key and append to the list
 	for _, info := range movieInfo.VideoInfos.Results {
 		if info.Type == "Trailer" || info.Site == "Youtube" {
@@ -52,6 +70,7 @@ func readMovieJSON(path string) []*downloadInfo {
 
 func VideoDownloader(filePath string, db *gorm.DB) {
 	var allVideoInfo []*downloadInfo
+	//fmt.Println(release)
 	fileDir, err := os.ReadDir(filePath)
 	if err != nil {
 		log.Fatalln(err)
@@ -61,6 +80,11 @@ func VideoDownloader(filePath string, db *gorm.DB) {
 		fileLoc := fmt.Sprintf("%s/%s", filePath, json.Name())
 		allVideoInfo = append(allVideoInfo, readMovieJSON(fileLoc)...)
 	}
+	//
+	for _, i := range allVideoInfo {
+		fmt.Println(i)
+	}
+
 	asyncDownloader(allVideoInfo, db)
 }
 
@@ -125,23 +149,13 @@ func cmdDownloader(info *downloadInfo) *downloadInfo {
 	var stderr bytes.Buffer
 
 	cmd := exec.Command("yt-dlp.exe", "-o", output, url, "--external-downloader", "aria2c", "--external-downloader-args", "-x 16 -k 1M")
-	//outPipeline, err := cmd.StdoutPipe()
-	//if err != nil {
-	//	return nil
-	//}
-	//
-	//errPipeline, err := cmd.StderrPipe()
-	//if err != nil {
-	//	return nil
-	//}
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Start()
 	if err != nil {
 		return nil
 	}
-	//go cmdOutputS(outPipeline)
-	//go cmdOutputS(errPipeline)
+
 	cmd.Wait()
 	errStr := stderr.String()
 	errors := strings.Split(errStr, "\n")
