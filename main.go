@@ -48,11 +48,11 @@ const (
 var (
 	sqlHOST    string = "127.0.0.1"
 	userName   string = "postgres"
-	password   string = "admin"
+	password   string = ""
 	port       int    = 5432
-	db         string = "TMDB"
-	moviePath  string = "D:/datas/movies"
-	PersonPath string = "D:/datas/persons"
+	db         string = ""
+	moviePath  string = ""
+	PersonPath string = ""
 	migration  bool   = false
 )
 
@@ -68,7 +68,7 @@ func dbConfigure() string {
 }
 
 func main() {
-	//readArgc()
+	readArgc()
 	if PersonPath == "" || moviePath == "" {
 		log.Fatalln("FilePath can't be empty")
 	}

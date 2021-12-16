@@ -24,6 +24,7 @@ type downloadInfo struct {
 
 const (
 	movieDateLayout = "2006-01-02"
+	trailerPath     = ""
 	//layoutUS  = "January 2, 2006"
 )
 
@@ -143,7 +144,7 @@ func isDone(ch chan *downloadInfo, db *gorm.DB) {
 }
 
 func cmdDownloader(info *downloadInfo) *downloadInfo {
-	output := fmt.Sprintf("D:/datas/trailer/%s.mp4", info.YoutubeKey)
+	output := fmt.Sprintf("%s/%s.mp4", trailerPath, info.YoutubeKey)
 	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", info.YoutubeKey)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
