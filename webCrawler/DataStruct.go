@@ -79,8 +79,10 @@ type MovieInfo struct {
 }
 
 type MovieVideoInfo struct {
-	MovieID  uint   `gorm:"primarykey"`
-	FilePath string `gorm:"primarykey"`
+	MovieID     uint   `gorm:"primarykey"`
+	FilePath    string `gorm:"primarykey"`
+	TrailerName string
+	ReleaseTime time.Time
 }
 
 //GenreInfo TODO - Genre data

@@ -85,8 +85,8 @@ func main() {
 		log.Println("Creating table...")
 		db.AutoMigrate(&webCrawler.GenreInfo{})
 		db.AutoMigrate(&webCrawler.MovieInfo{})
-		db.AutoMigrate(&webCrawler.MovieVideoInfo{})
 		db.AutoMigrate(&webCrawler.GenresMovies{})
+		db.AutoMigrate(&webCrawler.MovieVideoInfo{})
 		db.AutoMigrate(&webCrawler.PersonInfo{})
 		db.AutoMigrate(&webCrawler.MovieCharacter{})
 		db.AutoMigrate(&webCrawler.PersonCrew{})
@@ -108,11 +108,12 @@ func main() {
 
 	}
 	//TODO - Get Genre And Movie
-	//movieCrawlerProcedure(db)
+	movieCrawlerProcedure(db)
 	//TODO - Get ALL person
-	//personCrawlerProcedure(db)
-	//db.AutoMigrate(&webCrawler.MovieVideoInfo{})
+	personCrawlerProcedure(db)
+
 	VideoDownloader(moviePath, db)
+
 }
 
 func readArgc() {
@@ -208,7 +209,7 @@ func run(c *cli.Context) error {
 
 func movieCrawlerProcedure(db *gorm.DB) {
 	genreAndMoviesAll(db)
-	//insertJSONsToDB(moviePath, db, "movie")
+	insertJSONsToDB(moviePath, db, "movie")
 }
 
 func personCrawlerProcedure(db *gorm.DB) {

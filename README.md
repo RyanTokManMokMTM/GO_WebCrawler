@@ -62,32 +62,35 @@ func DownloadGZFile(url string) (*[]*TMDBJson,error)
 ```go
 // Movies Sturct
 type MovieInfo struct {
-	Adult            bool    `json:"adult"`
-	BackdropPath     string  `json:"backdrop_path"`
-	GenreIds         []int   `json:"-" gorm:"-"` //we are going to store it with join table ,ignore that...
-	Id               uint    `json:"id" gorm:"primarykey"`
-	OriginalLanguage string  `json:"original_language"`
-	OriginalTitle    string  `json:"original_title"`
-	Overview         string  `json:"overview"`
-	Popularity       float64 `json:"popularity"`
-	PosterPath       string  `json:"poster_path"`
-	ReleaseDate      string  `json:"release_date"`
-	Title            string  `json:"title"`
-	RunTime 		 int 	  `json:"runtime"`
-	Video            bool    `json:"video"`
-	VoteAverage      float64 `json:"vote_average"`
-	VoteCount        int     `json:"vote_count"`
-	
-	////gorm protocol
-	//CreatedAt time.Time      `json:"-"`
-	//UpdatedAt time.Time      `json:"-"`
-	//DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-
-	//Here have many2many relationship
-	//one movie can have many genres
-	//a genres can belong to many result
-
-	GenreInfo []GenreInfo `json:"genres" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
+    Adult            bool    `json:"adult"`
+    BackdropPath     string  `json:"backdrop_path"`
+    GenreIds         []int   `json:"-" gorm:"-"` //we are going to store it with join table ,ignore that...
+    Id               uint    `json:"id" gorm:"primarykey"`
+    OriginalLanguage string  `json:"original_language"`
+    OriginalTitle    string  `json:"original_title"`
+    Overview         string  `json:"overview"`
+    Popularity       float64 `json:"popularity"`
+    PosterPath       string  `json:"poster_path"`
+    ReleaseDate      string  `json:"release_date"`
+    Title            string  `json:"title"`
+    RunTime          int     `json:"runtime"`
+    Video            bool    `json:"video"`
+    VoteAverage      float64 `json:"vote_average"`
+    VoteCount        int     `json:"vote_count"`
+    
+    VideoInfos VideoResults `json:"videos" gorm:"-"`
+    
+    ////gorm protocol
+    //CreatedAt time.Time      `json:"-"`
+    //UpdatedAt time.Time      `json:"-"`
+    //DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+    
+    //Here have many2many relationship
+    //one movie can have many genres
+    //a genres can belong to many result
+    
+    GenreInfo  []GenreInfo      `json:"genres" gorm:"many2many:genres_movies"` //json do not contain this info, ignore that
+    MovieVideo []MovieVideoInfo `json:"-" gorm:"foreignKey:MovieID"`
 }
 ```
 ```go

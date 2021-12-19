@@ -20,11 +20,14 @@ import (
 type downloadInfo struct {
 	MovieId    uint
 	YoutubeKey string
+	Name       string
+	Release    time.Time
 }
 
 const (
 	movieDateLayout = "2006-01-02"
-	trailerPath     = ""
+	videoDateLayout = "2006-01-02 15:04:05 UTC"
+	trailerPath     = "D:/datas/trailer"
 	//layoutUS  = "January 2, 2006"
 )
 
@@ -56,9 +59,13 @@ func readMovieJSON(path string) []*downloadInfo {
 	//TODO - Read all the available key and append to the list
 	for _, info := range movieInfo.VideoInfos.Results {
 		if info.Type == "Trailer" || info.Site == "Youtube" {
+			releaseDate, _ := time.Parse(videoDateLayout, info.PublishedAt)
+
 			trailerInfo := downloadInfo{
 				MovieId:    movieInfo.Id,
 				YoutubeKey: info.Key,
+				Name:       info.Name,
+				Release:    releaseDate,
 			}
 			movieRelatedTrailers = append(movieRelatedTrailers, &trailerInfo)
 		}
@@ -82,11 +89,12 @@ func VideoDownloader(filePath string, db *gorm.DB) {
 		allVideoInfo = append(allVideoInfo, readMovieJSON(fileLoc)...)
 	}
 	//
-	for _, i := range allVideoInfo {
-		fmt.Println(i)
-	}
+	//for _, i := range allVideoInfo {
+	//	fmt.Println(i)
+	//}
 
 	asyncDownloader(allVideoInfo, db)
+
 }
 
 func asyncDownloader(downloadData []*downloadInfo, db *gorm.DB) {
@@ -135,8 +143,10 @@ func isDone(ch chan *downloadInfo, db *gorm.DB) {
 		if v != nil {
 			fmt.Println(v.YoutubeKey)
 			db.Create(webC.MovieVideoInfo{
-				MovieID:  v.MovieId,
-				FilePath: fmt.Sprintf("/%s.mp4", v.YoutubeKey),
+				MovieID:     v.MovieId,
+				FilePath:    fmt.Sprintf("/%s.mp4", v.YoutubeKey),
+				TrailerName: v.Name,
+				ReleaseTime: v.Release,
 			})
 			os.Remove(fmt.Sprintf("D:/datas/movies/%d.json", v.MovieId))
 		}
@@ -165,6 +175,7 @@ func cmdDownloader(info *downloadInfo) *downloadInfo {
 		fmt.Println(errStr)
 		return nil
 	}
+	fmt.Println(out.String())
 	return info
 }
 
