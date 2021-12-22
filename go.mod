@@ -1,4 +1,4 @@
-module GO_WebCrawler
+module tmdb-movie-webcrawler
 
 go 1.17
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	webC "GO_WebCrawler/webCrawler"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -15,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	webC "tmdb-movie-webcrawler/webCrawler"
 )
 
 type downloadInfo struct {

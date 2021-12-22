@@ -11,8 +11,6 @@ import (
 	//"github.com/urfave/cli"
 	//"os"
 
-	"GO_WebCrawler/GzFileDownloader"
-	"GO_WebCrawler/webCrawler"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +22,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"tmdb-movie-webcrawler/GzFileDownloader"
+	"tmdb-movie-webcrawler/webCrawler"
 )
 
 const (
@@ -108,11 +108,11 @@ func main() {
 
 	}
 	//TODO - Get Genre And Movie
-	movieCrawlerProcedure(db)
+	//movieCrawlerProcedure(db)
 	//TODO - Get ALL person
-	personCrawlerProcedure(db)
+	//personCrawlerProcedure(db)
 
-	VideoDownloader(moviePath, db)
+	//VideoDownloader(moviePath, db)
 
 }
 
