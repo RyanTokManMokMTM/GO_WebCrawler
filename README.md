@@ -1,6 +1,10 @@
 ## TMDB Crawler With Concurrency 
 This application is used for fetching all movies info and crews info from TMDB api.
-
+---
+Clone the project to `go/src/`
+```git
+git clone https://github.com/RyanTokManMokMTM/tmdb-movie-webcrawler.git
+```
 ---
 #### Usage:
 ```CMD
