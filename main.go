@@ -14,6 +14,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/GzFileDownloader"
+	"github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/tool"
+	"github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/webCrawler"
 	"github.com/urfave/cli"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -22,8 +25,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"tmdb-movie-webcrawler/GzFileDownloader"
-	"tmdb-movie-webcrawler/webCrawler"
 )
 
 const (
@@ -50,16 +51,16 @@ var (
 	userName   string = "postgres"
 	password   string = ""
 	port       int    = 5432
-	db         string = ""
-	moviePath  string = ""
-	PersonPath string = ""
+	db         string = "TMDB"
+	moviePath  string = "./movies"
+	PersonPath string = "./persons"
 	migration  bool   = false
 )
 
 var (
-	year, month, day        = time.Now().Add(-24 * time.Hour).Date()
-	movieGZ          string = fmt.Sprintf("/movie_ids_%d_%d_%d.json.gz", month, day, year)
-	peopleGZ         string = fmt.Sprintf("/person_ids_%d_%d_%d.json.gz", month, day, year)
+	year, month, day        = time.Now().Add(-48 * time.Hour).Date()
+	movieGZ          string = fmt.Sprintf("/movie_ids_%s_%d_%d.json.gz", tool.MonthToStr(month), day, year)
+	peopleGZ         string = fmt.Sprintf("/person_ids_%s_%d_%d.json.gz", tool.MonthToStr(month), day, year)
 )
 
 func dbConfigure() string {
@@ -108,12 +109,11 @@ func main() {
 
 	}
 	//TODO - Get Genre And Movie
-	//movieCrawlerProcedure(db)
+
+	movieCrawlerProcedure(db)
 	//TODO - Get ALL person
-	//personCrawlerProcedure(db)
-
+	personCrawlerProcedure(db)
 	//VideoDownloader(moviePath, db)
-
 }
 
 func readArgc() {
@@ -225,6 +225,7 @@ func fetchMovieViaID(moviePath string) error {
 	uri := fileHost + movieGZ
 	var uris []int
 	moviesData, err := GzFileDownloader.DownloadGZFile(uri)
+	log.Println(uri)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -258,6 +259,7 @@ func fetchPersonVisID() error {
 func genreAndMoviesAll(db *gorm.DB) {
 	apiURL := host + genreAllURI + "?api_key=" + apiKey + "&language=zh-TW"
 	//TODO - Insert Data to Database
+
 	_, err := webCrawler.GenreTableCreate(apiURL, db)
 	if err != nil {
 		log.Fatalln(err)
@@ -338,8 +340,9 @@ func movieJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 			//}
 			//movieInfo.MovieVideo = trailInfos
 			db.Create(&movieInfo)
+			os.Remove(location)
 		} else {
-			fmt.Println("???")
+			log.Printf("Error to insert %v", err)
 		}
 	}
 	return nil
@@ -392,6 +395,9 @@ func personJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 			personInfo.MovieCharacter = newMovieCast
 			personInfo.PersonCrew = newMovieCrew
 			db.Create(&personInfo)
+			os.Remove(location)
+		} else {
+			log.Printf("Error to insert %v", err)
 		}
 	}
 
