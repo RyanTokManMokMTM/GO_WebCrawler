@@ -260,7 +260,7 @@ func asyncPersonFetcher(uris chan string, result chan *PersonInfo, wg *sync.Wait
 }
 
 func toPersonJSON(person *PersonInfo, personPath string) error {
-	fileName := fmt.Sprintf("%s/%d.json", personPath, person.Id)
+	fileName := fmt.Sprintf("%s/%d.json", personPath, person.PersonID)
 	fmt.Println(person.Name)
 	file, err := os.Create(fileName)
 	if err != nil {

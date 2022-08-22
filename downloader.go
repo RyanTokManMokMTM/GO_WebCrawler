@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	webC "github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/webCrawler"
 	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
@@ -14,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	webC "tmdb-movie-webcrawler/webCrawler"
 )
 
 type downloadInfo struct {
@@ -98,13 +98,13 @@ func VideoDownloader(filePath string, db *gorm.DB) {
 }
 
 func asyncDownloader(downloadData []*downloadInfo, db *gorm.DB) {
-	downloaderCh := make(chan *downloadInfo, 20) //received downloadInfo to download
-	finishedCh := make(chan *downloadInfo, 20)   //received downloadInfo after is done
+	downloaderCh := make(chan *downloadInfo, 150) //received downloadInfo to download
+	finishedCh := make(chan *downloadInfo, 150)   //received downloadInfo after is done
 	wg := sync.WaitGroup{}
 	go isDone(finishedCh, db)
 
 	go func() {
-		for i := 0; i < 50; i++ {
+		for i := 0; i < 200; i++ {
 			wg.Add(1)
 			go downloaderHandle(&wg, downloaderCh, finishedCh)
 		}

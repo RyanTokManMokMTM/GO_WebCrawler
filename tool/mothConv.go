@@ -1,6 +1,9 @@
 package tool
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 func MonthToStr(month time.Month) string {
 	switch month {
@@ -30,4 +33,11 @@ func MonthToStr(month time.Month) string {
 		return "21"
 	}
 	return ""
+}
+
+func DateToStr(day int) string {
+	if day < 10 {
+		return fmt.Sprintf("0%d", day)
+	}
+	return fmt.Sprintf("%d", day)
 }

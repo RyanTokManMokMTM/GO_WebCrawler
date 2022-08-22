@@ -18,7 +18,8 @@ import (
 	"github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/tool"
 	"github.com/RyanTokManMokMTM/tmdb-movie-webcrawler/webCrawler"
 	"github.com/urfave/cli"
-	"gorm.io/driver/postgres"
+	//"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"io/ioutil"
 	"log"
@@ -48,23 +49,25 @@ const (
 
 var (
 	sqlHOST    string = "127.0.0.1"
-	userName   string = "postgres"
-	password   string = ""
-	port       int    = 5432
-	db         string = "TMDB"
-	moviePath  string = "./movies"
-	PersonPath string = "./persons"
+	userName   string = "root"
+	password   string = "admin"
+	port       int    = 3306
+	db         string = "movie"
+	moviePath  string = "/Users/jackson/tmdbmovies"
+	PersonPath string = "/Users/jackson/persons"
 	migration  bool   = false
 )
 
 var (
 	year, month, day        = time.Now().Add(-48 * time.Hour).Date()
-	movieGZ          string = fmt.Sprintf("/movie_ids_%s_%d_%d.json.gz", tool.MonthToStr(month), day, year)
-	peopleGZ         string = fmt.Sprintf("/person_ids_%s_%d_%d.json.gz", tool.MonthToStr(month), day, year)
+	movieGZ          string = fmt.Sprintf("/movie_ids_%s_%s_%d.json.gz", tool.MonthToStr(month), tool.DateToStr(day), year)
+	peopleGZ         string = fmt.Sprintf("/person_ids_%s_%s_%d.json.gz", tool.MonthToStr(month), tool.DateToStr(day), year)
 )
 
 func dbConfigure() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s", userName, password, sqlHOST, port, db)
+	//return fmt.Sprintf("postgres://%s:%s@%s:%d/%s", userName, password, sqlHOST, port, db)
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", userName, password, sqlHOST, port, db)
+	//return fmt.Sprintf("mysql://%s:%s@%s:%d/%s", userName, password, sqlHOST, port, db)
 	//return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d ",sqlHOST,userName,password,db,port)
 }
 
@@ -75,45 +78,61 @@ func main() {
 	}
 	log.Println("Configuring the database...")
 	config := dbConfigure()
-	db, err := gorm.Open(postgres.Open(config), &gorm.Config{})
+	//fmt.Println(config)
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN: config,
+	}))
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	log.Println("DB Configuration Done...")
 
-	if migration {
+	if true {
 		log.Println("Creating table...")
+
 		db.AutoMigrate(&webCrawler.GenreInfo{})
 		db.AutoMigrate(&webCrawler.MovieInfo{})
-		db.AutoMigrate(&webCrawler.GenresMovies{})
-		db.AutoMigrate(&webCrawler.MovieVideoInfo{})
-		db.AutoMigrate(&webCrawler.PersonInfo{})
-		db.AutoMigrate(&webCrawler.MovieCharacter{})
-		db.AutoMigrate(&webCrawler.PersonCrew{})
-
-		if err := db.Exec("ALTER TABLE genres_movies DROP CONSTRAINT genres_movies_pkey").Error; err != nil {
-			log.Println(err)
-			return
-		}
-
-		if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil {
-			log.Println(err)
-			return
-		}
-
-		if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT genres_movies_pkey PRIMARY KEY (id)").Error; err != nil {
-			log.Println(err)
-			return
-		}
+		//db.AutoMigrate(&webCrawler.GenresMovies{})
+		//db.AutoMigrate(&webCrawler.MovieVideoInfo{})
+		//db.AutoMigrate(&webCrawler.PersonInfo{})
+		//db.AutoMigrate(&webCrawler.MovieCharacter{})
+		//db.AutoMigrate(&webCrawler.PersonCrew{})
+		////mysql
+		//if err := db.Exec("ALTER TABLE genres_movies ADD CONSTRAINT  genres_movies_unique UNIQUE(genre_info_id,movie_info_id)").Error; err != nil {
+		//	log.Println(err)
+		//	return
+		//}
+		////
+		//if err := db.Exec("ALTER TABLE genres_movies ADD FOREIGN KEY(`movie_info_id`) REFERENCES `movie_infos`(`id`) ").Error; err != nil {
+		//	log.Println(err)
+		//	return
+		//}
+		//
+		//if err := db.Exec("ALTER TABLE genres_movies ADD FOREIGN KEY(`genre_info_id`) REFERENCES `genre_infos` (`id`)").Error; err != nil {
+		//	log.Println(err)
+		//	return
+		//}
 
 	}
 	//TODO - Get Genre And Movie
 
 	movieCrawlerProcedure(db)
 	//TODO - Get ALL person
-	personCrawlerProcedure(db)
+	//personCrawlerProcedure(db)
 	//VideoDownloader(moviePath, db)
+	//TestingMany2Many(db)
+}
+
+func TestingMany2Many(db *gorm.DB) {
+	var resp = &webCrawler.GenreInfo{}
+
+	if err := db.Where("genre_id = ?", 12).Preload("MovieInfo").Find(&resp).Error; err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	b, _ := json.MarshalIndent(resp, "", "\t")
+	fmt.Printf("%v", string(b))
 }
 
 func readArgc() {
@@ -208,16 +227,16 @@ func run(c *cli.Context) error {
 }
 
 func movieCrawlerProcedure(db *gorm.DB) {
-	genreAndMoviesAll(db)
+	//genreAndMoviesAll(db)
 	insertJSONsToDB(moviePath, db, "movie")
 }
 
 func personCrawlerProcedure(db *gorm.DB) {
-	err := fetchPersonVisID()
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	//err := fetchPersonVisID()
+	//if err != nil {
+	//	log.Println(err)
+	//	return
+	//}
 	insertJSONsToDB(PersonPath, db, "person")
 }
 
@@ -305,6 +324,7 @@ func insertJSONsToDB(dirPath string, db *gorm.DB, jsonType string) {
 func movieJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 	var movieInfo webCrawler.MovieInfo
 	location := fmt.Sprintf("%s/%s", dirPath, fileName)
+	fmt.Printf(location)
 	jsonsData, err := ioutil.ReadFile(location)
 	if err != nil {
 		log.Println(err)
@@ -333,7 +353,7 @@ func movieJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 			//	if videoInfo.Type == "Trailer" {
 			//		fmt.Println(videoInfo.Key)
 			//		trailInfos = append(trailInfos, webCrawler.MovieVideoInfo{
-			//			MovieID:  movieInfo.Id,
+			//			Id:  movieInfo.Id,
 			//			FilePath: fmt.Sprintf("/%s", videoInfo.Key),
 			//		})
 			//	}
@@ -367,7 +387,7 @@ func personJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 		return nil
 	}
 
-	if dbErr := db.Where("id = ?", personInfo.Id).First(&webCrawler.PersonInfo{}); dbErr != nil {
+	if dbErr := db.Where("person_id = ?", personInfo.PersonID).First(&webCrawler.PersonInfo{}); dbErr != nil {
 		if errors.Is(dbErr.Error, gorm.ErrRecordNotFound) {
 			//TODO - ForEach cast need to check the movie info is our
 			var newMovieCast []webCrawler.MovieCharacter
@@ -375,7 +395,7 @@ func personJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 
 			for _, castData := range personInfo.MovieCredits.Cast {
 				//if current cast movie is existed
-				if dbInsertErr := db.Where("id = ?", castData.MovieID).First(&webCrawler.MovieInfo{}); dbInsertErr != nil {
+				if dbInsertErr := db.Where("movie_id = ?", castData.MovieID).First(&webCrawler.MovieInfo{}); dbInsertErr != nil {
 					if !errors.Is(dbInsertErr.Error, gorm.ErrRecordNotFound) {
 						//existed
 						newMovieCast = append(newMovieCast, castData)
@@ -384,7 +404,7 @@ func personJsonToDB(db *gorm.DB, dirPath string, fileName string) error {
 			}
 
 			for _, crewData := range personInfo.MovieCredits.Crew {
-				if dbInsertErr := db.Where("id = ?", crewData.MovieID).First(&webCrawler.MovieInfo{}); dbInsertErr != nil {
+				if dbInsertErr := db.Where("movie_id = ?", crewData.MovieID).First(&webCrawler.MovieInfo{}); dbInsertErr != nil {
 					if !errors.Is(dbInsertErr.Error, gorm.ErrRecordNotFound) {
 						//existed
 						newMovieCrew = append(newMovieCrew, crewData)
